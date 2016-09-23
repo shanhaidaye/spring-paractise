@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:p="http://www.springframework.org/schema/p"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+ http://www.springframework.org/schema/beans/spring-beans.xsd
+ http://www.springframework.org/schema/context
+  http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+<!--http://docs.spring.io/spring/docs/4.1.7.RELEASE/spring-framework-reference/pdf/spring-framework-reference.pdf-->
+    <!--配置整合mybatis过程-->
+    <!--1配置数据库相关参数
+        properties ${url}
+    -->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+    <context:component-scan base-package="org.register.dao.cache"/>
+    <!--数据库连接池-->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <!--连接池属性-->
+        <property name="driverClass" value="${driver}"/>
+        <property name="jdbcUrl" value="${url}"/>
+        <property name="user" value="${username}"/>
+        <property name="password" value="${password}"/>
+        <!--c3p0连接池的私有属性 -->
+        <property name="maxPoolSize" value="30"/>
+        <property name="minPoolSize" value="10"/>
+
+        <!--默认也是false-->
+        <property name="autoCommitOnClose" value="false"/>
+        <property name="checkoutTimeout" value="1000"/>
+
+        <!--当获取链接重试次数-->
+        <property name="acquireRetryAttempts" value="2"/>
+    </bean>
+
+    <!--约定大于配置-->
+    <!--配置sqlsessionFactory 会话工厂-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--注入数据库连接池-->
+        <property name="dataSource" ref="dataSource"/>
+        <!--配置Mybatis全局配置文件-->
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+        <!--扫描Entity包 使用别名 Register->Register-->
+        <property name="typeAliasesPackage" value="org.register.entity"/>
+        <!--扫描sql配置文件:mapper需要的XML文件-->
+        <property name="mapperLocations" value="classpath:mapper/*.xml"/>
+    </bean>
+
+    <!--配置扫描Dao接口包,动态实现Dao接口,并注入到Spring容器中-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--注入sqlSessionFactory  后处理方式 -->
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+        <!--给出需要扫描Dao接口包 自动实现dao实现类 注入到spring容器中-->
+        <property name="basePackage" value="org.register.dao"/>
+
+    </bean>
+
+    <bean id="redisDao"  class="org.register.dao.cache.RedisDao">
+        <constructor-arg index="0" value="10.3.247.6"/>
+        <constructor-arg index="1" value="6379"/>
+    </bean>
+
+
+
+
+    <!--<bean id="jedisConnFactory"-->
+          <!--class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" p:usePool="true"-->
+          <!--p:hostName="10.3.247.6" p:port="6379" p:password="web123!@#">-->
+    <!--</bean>-->
+
+    <!--&lt;!&ndash; redis template definition &ndash;&gt;-->
+    <!--<bean id="redisTemplate"-->
+          <!--class="org.springframework.data.redis.core.RedisTemplate" p:connectionFactory-ref="jedisConnFactory"/>-->
+
+    <bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+        <property name="maxTotal" value="1000"/>
+        <property name="maxIdle" value="10"/>
+        <property name="minIdle" value="1"/>
+        <property name="maxWaitMillis" value="30000"/>
+        <property name="testOnBorrow" value="true"/>
+        <property name="testOnReturn" value="true"/>
+        <property name="testWhileIdle" value="true"/>
+    </bean>
+
+    <bean id="shardedJedisPool" class="redis.clients.jedis.ShardedJedisPool" destroy-method="destroy">
+        <constructor-arg ref="jedisPoolConfig"/>
+        <constructor-arg>
+            <list>
+                <bean class="redis.clients.jedis.JedisShardInfo">
+                    <constructor-arg name="host" value="redis://:web123!%40%23@10.3.247.6:6379" />
+                    <!--<constructor-arg  index="0" value="10.3.247.6"/>-->
+                    <!--<constructor-arg  index="1" type="int" value="6379"/>-->
+                    <!--<constructor-arg  index="2" value="web123!@#"/>-->
+                    <!--<constructor-arg value="instance:01"/>-->
+                </bean>
+                <!--<bean class="redis.clients.jedis.JedisShardInfo">-->
+                    <!--<constructor-arg value="127.0.0.1"/>-->
+                    <!--<constructor-arg type="int" value="7001"/>-->
+                    <!--<constructor-arg value="instance:02"/>-->
+                <!--</bean>-->
+                <!--<bean class="redis.clients.jedis.JedisShardInfo">-->
+                    <!--<constructor-arg value="127.0.0.1"/>-->
+                    <!--<constructor-arg type="int" value="7003"/>-->
+                    <!--<constructor-arg value="instance:03"/>-->
+                <!--</bean>-->
+            </list>
+        </constructor-arg>
+    </bean>
+
+
+</beans>
